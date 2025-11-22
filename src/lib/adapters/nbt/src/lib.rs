@@ -4,6 +4,7 @@ pub mod errors;
 pub mod ser;
 mod nbt;
 mod raw;
+mod tag;
 
 pub type Result<T> = std::result::Result<T, NBTError>;
 
