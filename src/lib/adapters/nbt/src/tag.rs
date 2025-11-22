@@ -31,4 +31,21 @@ impl NbtTag {
     const COMPOUND_ID: u8 = 10;
     const INT_ARRAY_ID: u8 = 11;
     const LONG_ARRAY_ID: u8 = 12;
+
+    pub fn get_id(&self) -> u8 {
+        match self {
+            &NbtTag::Byte(_) => NbtTag::BYTE_ID,
+            &NbtTag::Short(_) => NbtTag::SHORT_ID,
+            &NbtTag::Int(_) => NbtTag::INT_ID,
+            &NbtTag::Long(_) => NbtTag::LONG_ID,
+            &NbtTag::Float(_) => NbtTag::FLOAT_ID,
+            &NbtTag::Double(_) => NbtTag::DOUBLE_ID,
+            &NbtTag::ByteArray(_) => NbtTag::BYTE_ARRAY_ID,
+            &NbtTag::String(_) => NbtTag::STRING_ID,
+            &NbtTag::List { .. } => NbtTag::LIST_ID,
+            &NbtTag::Compound(_) => NbtTag::COMPOUND_ID,
+            &NbtTag::IntArray(_) => NbtTag::INT_ARRAY_ID,
+            &NbtTag::LongArray(_) => NbtTag::LONG_ARRAY_ID,
+        }
+    }
 }
