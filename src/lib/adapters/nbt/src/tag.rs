@@ -307,8 +307,9 @@ impl NetDecode for TagEntry {
 }
 
 #[repr(u8)]
-#[derive(PartialEq, Clone, Debug, Copy)]
+#[derive(PartialEq, Clone, Debug, Copy, Default)]
 pub enum NbtTagType {
+    #[default]
     End = 0,
     Byte = 1,
     Short = 2,

@@ -1,3 +1,4 @@
+use std::fmt::Display;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -33,4 +34,19 @@ pub enum NBTError {
     NoRootTag,
     #[error("Element `{0}` not found in NBT data")]
     ElementNotFound(&'static str),
+    #[error("Type not supported in NBT")]
+    TypeNotSupported,
+    #[error("Lists must contain the same type of element")]
+    ListTypeMismatch,
+    #[error("{0}")]
+    Other(String),
+}
+
+impl serde::ser::Error for NBTError {
+    fn custom<T>(msg: T) -> Self
+    where
+        T: Display,
+    {
+        NBTError::Other(msg.to_string())
+    }
 }

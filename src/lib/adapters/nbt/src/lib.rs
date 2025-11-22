@@ -7,6 +7,7 @@ pub mod ser;
 mod nbt;
 mod raw;
 mod tag;
+pub mod ser_new;
 
 pub type Result<T> = std::result::Result<T, NBTError>;
 

@@ -6,6 +6,8 @@ use ferrumc_net_codec::decode::{NetDecode, NetDecodeOpts};
 use ferrumc_net_codec::decode::errors::NetDecodeError;
 use ferrumc_net_codec::encode::{NetEncode, NetEncodeOpts};
 use ferrumc_net_codec::encode::errors::NetEncodeError;
+use crate::NBTError;
+use crate::ser_new::RawNbtSerializer;
 use crate::tag::{NbtTag, NbtTagType, TagEntry};
 
 #[derive(Debug, PartialEq)]
@@ -26,8 +28,15 @@ impl RawNbt {
         todo!()
     }
 
-    pub fn serialize<T: Serialize>(_data: T) -> Self {
-        todo!()
+    pub fn serialize<T: Serialize>(data: T) -> Result<Self, NBTError> {
+        let tag = data.serialize(&mut RawNbtSerializer)?;
+        let NbtTag::Compound { inner } = tag else {
+            return Err(NBTError::TypeNotSupported);
+        };
+
+        Ok(Self {
+            root: inner
+        })
     }
 }
 
@@ -92,11 +101,13 @@ impl NetDecode for RawNbt {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use std::io::Cursor;
+    use std::ops::Deref;
+    use std::sync::LazyLock;
     use super::*;
 
-    const NBT_BYTES: &'_ [u8] = &[
+    pub const NBT_BYTES: &'_ [u8] = &[
         0x0A, 0x01, 0x00, 0x04, 0x62, 0x79, 0x74, 0x65, 0x32, 0x02,
         0x00, 0x05, 0x73, 0x68, 0x6F, 0x72, 0x74, 0x00, 0x32, 0x03, 0x00, 0x03,
         0x69, 0x6E, 0x74, 0x00, 0x00, 0x00, 0x32, 0x04, 0x00, 0x04, 0x6C, 0x6F,
@@ -119,9 +130,7 @@ mod tests {
         0x00, 0x32, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x32, 0x00
     ];
 
-    #[tokio::test]
-    async fn test_encode_nbt_async() {
-        let mut writer = Vec::new();
+    pub static COMP_NBT: LazyLock<RawNbt> = LazyLock::new(|| {
         let mut nbt = RawNbt::new();
         nbt.put_tag("byte", NbtTag::Byte(50));
         nbt.put_tag("short", NbtTag::Short(50));
@@ -136,7 +145,14 @@ mod tests {
         nbt.put_tag("int_arr", NbtTag::IntArray(vec![50; 5]));
         nbt.put_tag("long_arr", NbtTag::LongArray(vec![50; 5]));
 
-        nbt.encode_async(&mut writer, &NetEncodeOpts::None).await.expect("NBT encode failed");
+        nbt
+    });
+
+    #[tokio::test]
+    async fn test_encode_nbt_async() {
+        let mut writer = Vec::new();
+
+        COMP_NBT.encode_async(&mut writer, &NetEncodeOpts::None).await.expect("NBT encode failed");
 
         assert_eq!(writer, NBT_BYTES)
     }
@@ -144,21 +160,8 @@ mod tests {
     #[test]
     fn test_encode_nbt() {
         let mut writer = Vec::new();
-        let mut nbt = RawNbt::new();
-        nbt.put_tag("byte", NbtTag::Byte(50));
-        nbt.put_tag("short", NbtTag::Short(50));
-        nbt.put_tag("int", NbtTag::Int(50));
-        nbt.put_tag("long", NbtTag::Long(50));
-        nbt.put_tag("float", NbtTag::Float(50.0));
-        nbt.put_tag("double", NbtTag::Double(50.0));
-        nbt.put_tag("byte_arr", NbtTag::ByteArray(vec![50; 5]));
-        nbt.put_tag("str", NbtTag::String("hello".to_string()));
-        nbt.put_tag("tag_arr", NbtTag::List { nbt_type: NbtTagType::Float, list: vec![NbtTag::Float(50.0), NbtTag::Float(59.0)] });
-        nbt.put_tag("compound", NbtTag::Compound { inner: vec![("hi".to_string(), NbtTag::Byte(0))] });
-        nbt.put_tag("int_arr", NbtTag::IntArray(vec![50; 5]));
-        nbt.put_tag("long_arr", NbtTag::LongArray(vec![50; 5]));
 
-        nbt.encode(&mut writer, &NetEncodeOpts::None).expect("NBT encode failed");
+        COMP_NBT.encode(&mut writer, &NetEncodeOpts::None).expect("NBT encode failed");
 
         assert_eq!(writer, NBT_BYTES)
     }
@@ -168,21 +171,8 @@ mod tests {
         let mut reader = Cursor::new(NBT_BYTES);
 
         let raw_nbt = <RawNbt as NetDecode>::decode_async(&mut reader, &NetDecodeOpts::default()).await.expect("failed to decode nbt");
-        let mut comparison = RawNbt::new();
-        comparison.put_tag("byte", NbtTag::Byte(50));
-        comparison.put_tag("short", NbtTag::Short(50));
-        comparison.put_tag("int", NbtTag::Int(50));
-        comparison.put_tag("long", NbtTag::Long(50));
-        comparison.put_tag("float", NbtTag::Float(50.0));
-        comparison.put_tag("double", NbtTag::Double(50.0));
-        comparison.put_tag("byte_arr", NbtTag::ByteArray(vec![50; 5]));
-        comparison.put_tag("str", NbtTag::String("hello".to_string()));
-        comparison.put_tag("tag_arr", NbtTag::List { nbt_type: NbtTagType::Float, list: vec![NbtTag::Float(50.0), NbtTag::Float(59.0)] });
-        comparison.put_tag("compound", NbtTag::Compound { inner: vec![("hi".to_string(), NbtTag::Byte(0))] });
-        comparison.put_tag("int_arr", NbtTag::IntArray(vec![50; 5]));
-        comparison.put_tag("long_arr", NbtTag::LongArray(vec![50; 5]));
 
-        assert_eq!(raw_nbt, comparison)
+        assert_eq!(&raw_nbt, COMP_NBT.deref())
     }
 
     #[test]
@@ -190,20 +180,7 @@ mod tests {
         let mut reader = Cursor::new(NBT_BYTES);
 
         let raw_nbt = <RawNbt as NetDecode>::decode(&mut reader, &NetDecodeOpts::default()).expect("failed to decode nbt");
-        let mut comparison = RawNbt::new();
-        comparison.put_tag("byte", NbtTag::Byte(50));
-        comparison.put_tag("short", NbtTag::Short(50));
-        comparison.put_tag("int", NbtTag::Int(50));
-        comparison.put_tag("long", NbtTag::Long(50));
-        comparison.put_tag("float", NbtTag::Float(50.0));
-        comparison.put_tag("double", NbtTag::Double(50.0));
-        comparison.put_tag("byte_arr", NbtTag::ByteArray(vec![50; 5]));
-        comparison.put_tag("str", NbtTag::String("hello".to_string()));
-        comparison.put_tag("tag_arr", NbtTag::List { nbt_type: NbtTagType::Float, list: vec![NbtTag::Float(50.0), NbtTag::Float(59.0)] });
-        comparison.put_tag("compound", NbtTag::Compound { inner: vec![("hi".to_string(), NbtTag::Byte(0))] });
-        comparison.put_tag("int_arr", NbtTag::IntArray(vec![50; 5]));
-        comparison.put_tag("long_arr", NbtTag::LongArray(vec![50; 5]));
 
-        assert_eq!(raw_nbt, comparison)
+        assert_eq!(&raw_nbt, COMP_NBT.deref())
     }
 }

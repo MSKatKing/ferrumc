@@ -37,11 +37,13 @@ impl<T: Serialize + DeserializeOwned> DerefMut for Nbt<T> {
 impl<T: Serialize + DeserializeOwned + Clone> NetEncode for Nbt<T> {
     fn encode<W: Write>(&self, writer: &mut W, opts: &NetEncodeOpts) -> Result<(), NetEncodeError> {
         RawNbt::serialize(self.inner.clone())
+            .map_err(|err| NetEncodeError::ExternalError(Box::new(err)))?
             .encode(writer, opts)
     }
 
     async fn encode_async<W: AsyncWrite + Unpin>(&self, writer: &mut W, opts: &NetEncodeOpts) -> Result<(), NetEncodeError> {
         RawNbt::serialize(self.inner.clone())
+            .map_err(|err| NetEncodeError::ExternalError(Box::new(err)))?
             .encode_async(writer, opts).await
     }
 }
