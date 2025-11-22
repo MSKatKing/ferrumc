@@ -2,7 +2,7 @@ use crate::NbtTag;
 use crate::ser::NbtSerializationOptions;
 
 impl NbtTag {
-    pub fn into_binary(self, opts: NbtSerializationOptions) -> Vec<u8> {
+    pub fn to_binary(&self, opts: NbtSerializationOptions) -> Vec<u8> {
         match self {
             NbtTag::Byte(v) => v.to_be_bytes().to_vec(),
             NbtTag::Short(v) => v.to_be_bytes().to_vec(),
@@ -24,9 +24,9 @@ impl NbtTag {
             },
             NbtTag::List { id, tags } => {
                 let mut buf = Vec::with_capacity(5);
-                buf.push(id);
+                buf.push(*id);
                 buf.extend_from_slice(&(tags.len() as u32).to_be_bytes());
-                buf.extend_from_slice(&tags.into_iter().map(|tag| tag.into_binary(opts)).flatten().collect::<Vec<_>>());
+                buf.extend_from_slice(tags.iter().map(|tag| tag.to_binary(opts)).flatten().collect::<Vec<_>>().as_slice());
                 buf
             },
             NbtTag::Compound(tags) => {
@@ -35,7 +35,7 @@ impl NbtTag {
                     buf.push(tag.get_id());
                     buf.extend_from_slice(&(name.len() as u16).to_be_bytes());
                     buf.extend_from_slice(name.as_bytes());
-                    buf.extend_from_slice(&tag.into_binary(opts));
+                    buf.extend_from_slice(&tag.to_binary(opts));
                 }
                 buf.push(0);
                 buf
@@ -43,13 +43,13 @@ impl NbtTag {
             NbtTag::IntArray(arr) => {
                 let mut buf = Vec::with_capacity(arr.len() * size_of::<i32>() + 4);
                 buf.extend_from_slice(&(arr.len() as u32).to_be_bytes());
-                buf.extend_from_slice(&arr.into_iter().map(i32::to_be_bytes).flatten().collect::<Vec<_>>());
+                buf.extend_from_slice(&arr.into_iter().map(|&i| i.to_be_bytes()).flatten().collect::<Vec<_>>());
                 buf
             },
             NbtTag::LongArray(arr) => {
                 let mut buf = Vec::with_capacity(arr.len() * size_of::<i64>() + 4);
                 buf.extend_from_slice(&(arr.len() as u32).to_be_bytes());
-                buf.extend_from_slice(&arr.into_iter().map(i64::to_be_bytes).flatten().collect::<Vec<_>>());
+                buf.extend_from_slice(&arr.into_iter().map(|&i| i.to_be_bytes()).flatten().collect::<Vec<_>>());
                 buf
             }
         }
@@ -87,6 +87,6 @@ mod tests {
             ])),
         ]);
 
-        assert_eq!(tag.into_binary(NbtSerializationOptions::Network), DATA)
+        assert_eq!(tag.to_binary(NbtSerializationOptions::Network), DATA)
     }
 }

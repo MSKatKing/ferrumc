@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use crate::NbtTag;
 
 pub struct RawNbt {
-    root: HashMap<String, NbtTag>,
+    pub(crate) root: HashMap<String, NbtTag>,
 }
 
 impl RawNbt {
