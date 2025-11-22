@@ -26,7 +26,7 @@ impl RawNbt {
         todo!()
     }
 
-    pub fn serialize<T: Serialize>(data: T) -> Self {
+    pub fn serialize<T: Serialize>(_data: T) -> Self {
         todo!()
     }
 }
@@ -76,7 +76,18 @@ impl NetDecode for RawNbt {
     }
 
     async fn decode_async<R: AsyncRead + Unpin>(reader: &mut R, opts: &NetDecodeOpts) -> Result<Self, NetDecodeError> {
-        todo!()
+        let start = u8::decode_async(reader, opts).await?;
+        if start != 0x0A { return Err(NetDecodeError::InvalidEnumVariant); }
+        let mut tags = Vec::new();
+
+        loop {
+            let TagEntry(name, tag) = TagEntry::decode_async(reader, opts).await?;
+            if tag.tag_type() == NbtTagType::End { break; }
+
+            tags.push((name, tag));
+        }
+
+        Ok(RawNbt { root: tags })
     }
 }
 
@@ -154,7 +165,24 @@ mod tests {
 
     #[tokio::test]
     async fn test_decode_nbt_async() {
+        let mut reader = Cursor::new(NBT_BYTES);
 
+        let raw_nbt = <RawNbt as NetDecode>::decode_async(&mut reader, &NetDecodeOpts::default()).await.expect("failed to decode nbt");
+        let mut comparison = RawNbt::new();
+        comparison.put_tag("byte", NbtTag::Byte(50));
+        comparison.put_tag("short", NbtTag::Short(50));
+        comparison.put_tag("int", NbtTag::Int(50));
+        comparison.put_tag("long", NbtTag::Long(50));
+        comparison.put_tag("float", NbtTag::Float(50.0));
+        comparison.put_tag("double", NbtTag::Double(50.0));
+        comparison.put_tag("byte_arr", NbtTag::ByteArray(vec![50; 5]));
+        comparison.put_tag("str", NbtTag::String("hello".to_string()));
+        comparison.put_tag("tag_arr", NbtTag::List { nbt_type: NbtTagType::Float, list: vec![NbtTag::Float(50.0), NbtTag::Float(59.0)] });
+        comparison.put_tag("compound", NbtTag::Compound { inner: vec![("hi".to_string(), NbtTag::Byte(0))] });
+        comparison.put_tag("int_arr", NbtTag::IntArray(vec![50; 5]));
+        comparison.put_tag("long_arr", NbtTag::LongArray(vec![50; 5]));
+
+        assert_eq!(raw_nbt, comparison)
     }
 
     #[test]

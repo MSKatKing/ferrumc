@@ -3,7 +3,7 @@ use ferrumc_net_codec::decode::{NetDecode, NetDecodeOpts};
 use ferrumc_net_codec::encode::errors::NetEncodeError;
 use ferrumc_net_codec::encode::{NetEncode, NetEncodeOpts};
 use std::io::{Read, Write};
-use tokio::io::AsyncWrite;
+use tokio::io::{AsyncReadExt, AsyncWrite};
 use tokio::io::{AsyncRead, AsyncWriteExt};
 
 #[derive(Debug, PartialEq)]
@@ -226,7 +226,83 @@ impl NetDecode for TagEntry {
     }
 
     async fn decode_async<R: AsyncRead + Unpin>(reader: &mut R, opts: &NetDecodeOpts) -> Result<Self, NetDecodeError> {
-        todo!()
+        async fn decode_tag<R: AsyncRead + Unpin>(id: u8, reader: &mut R, opts: &NetDecodeOpts) -> Result<NbtTag, NetDecodeError> {
+            match id {
+                0 => Ok(NbtTag::End),
+                1 => Ok(NbtTag::Byte(i8::decode_async(reader, opts).await?)),
+                2 => Ok(NbtTag::Short(i16::decode_async(reader, opts).await?)),
+                3 => Ok(NbtTag::Int(i32::decode_async(reader, opts).await?)),
+                4 => Ok(NbtTag::Long(i64::decode_async(reader, opts).await?)),
+                5 => Ok(NbtTag::Float(f32::decode_async(reader, opts).await?)),
+                6 => Ok(NbtTag::Double(f64::decode_async(reader, opts).await?)),
+                7 => {
+                    let len = u32::decode_async(reader, opts).await?;
+                    let mut buf = vec![0u8; len as usize];
+                    reader.read_exact(&mut buf).await.map_err(NetDecodeError::from)?;
+                    Ok(NbtTag::ByteArray(buf))
+                },
+                8 => {
+                    let len = u16::decode_async(reader, opts).await?;
+                    let mut buf = vec![0u8; len as usize];
+                    reader.read_exact(&mut buf).await.map_err(NetDecodeError::from)?;
+                    Ok(NbtTag::String(String::from_utf8(buf)?))
+                }
+                9 => {
+                    let nbt_type = u8::decode_async(reader, opts).await?;
+                    let len = u32::decode_async(reader, opts).await?;
+                    let mut list = Vec::with_capacity(len as usize);
+
+                    for _ in 0..len {
+                        list.push(Box::pin(decode_tag(nbt_type, reader, opts)).await?);
+                    }
+
+                    Ok(NbtTag::List { nbt_type: NbtTagType::from(nbt_type), list })
+                },
+                10 => {
+                    let mut tags = Vec::new();
+
+                    loop {
+                        let TagEntry(name, tag) = Box::pin(TagEntry::decode_async(reader, opts)).await?;
+                        if tag.tag_type() == NbtTagType::End { break; }
+
+                        tags.push((name, tag));
+                    }
+
+                    Ok(NbtTag::Compound { inner: tags })
+                },
+                11 => {
+                    let len = u32::decode_async(reader, opts).await?;
+                    let mut buf = Vec::with_capacity(len as _);
+
+                    for _ in 0..len {
+                        buf.push(i32::decode_async(reader, opts).await?);
+                    }
+
+                    Ok(NbtTag::IntArray(buf))
+                },
+                12 => {
+                    let len = u32::decode_async(reader, opts).await?;
+                    let mut buf = Vec::with_capacity(len as _);
+
+                    for _ in 0..len {
+                        buf.push(i64::decode_async(reader, opts).await?);
+                    }
+
+                    Ok(NbtTag::LongArray(buf))
+                },
+                id => Err(NetDecodeError::ExternalError(Box::new(std::io::Error::new(std::io::ErrorKind::InvalidInput, id.to_string()))))
+            }
+        }
+
+        let id = u8::decode_async(reader, opts).await?;
+        if id == 0 { return Ok(TagEntry(String::new(), NbtTag::End)); }
+
+        let name_len = u16::decode_async(reader, opts).await?;
+        let mut name = vec![0; name_len as usize];
+        reader.read_exact(&mut name).await.map_err(NetDecodeError::from)?;
+        let name = String::from_utf8(name).map_err(NetDecodeError::from)?;
+
+        Ok(TagEntry(name, decode_tag(id, reader, opts).await?))
     }
 }
 
