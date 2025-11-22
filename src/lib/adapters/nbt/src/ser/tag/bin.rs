@@ -58,7 +58,7 @@ impl NbtTag {
 
 #[cfg(test)]
 mod tests {
-    use crate::NbtTag;
+    use crate::{nbt_byte, nbt_compound, nbt_int_array};
     use crate::ser::NbtSerializationOptions;
 
     const DATA: [u8; 117] = [
@@ -77,15 +77,15 @@ mod tests {
 
     #[test]
     fn test_bin_serialization() {
-        let tag = NbtTag::Compound(vec![
-            ("a".to_string(), NbtTag::Byte(0)),
-            ("b".to_string(), NbtTag::IntArray(vec![5; 10])),
-            ("c".to_string(), NbtTag::Compound(vec![
-                ("a".to_string(), NbtTag::Byte(0)),
-                ("b".to_string(), NbtTag::IntArray(vec![1; 10])),
-                ("c".to_string(), NbtTag::Compound(vec![]))
-            ])),
-        ]);
+        let tag = nbt_compound!(
+            "a" => nbt_byte!(0),
+            "b" => nbt_int_array!(5; 10),
+            "c" => nbt_compound!(
+                "a" => nbt_byte!(0),
+                "b" => nbt_int_array!(1; 10),
+                "c" => nbt_compound!()
+            )
+        );
 
         assert_eq!(tag.to_binary(NbtSerializationOptions::Network), DATA)
     }

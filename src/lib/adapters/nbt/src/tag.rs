@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum NbtTag {
     Byte(i8),
@@ -12,7 +14,7 @@ pub enum NbtTag {
         id: u8,
         tags: Vec<NbtTag>,
     },
-    Compound(Vec<(String, NbtTag)>),
+    Compound(BTreeMap<String, NbtTag>),
     IntArray(Vec<i32>),
     LongArray(Vec<i64>),
 }

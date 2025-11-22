@@ -1,11 +1,16 @@
 #[macro_export]
 macro_rules! nbt_compound {
+    () => {
+        $crate::tag::NbtTag::Compound(std::collections::BTreeMap::<String, $crate::tag::NbtTag>::new())
+    };
     ($($name:expr => $tag:expr),*$(,)?) => {
-        $crate::tag::NbtTag::Compound(vec![
+        {
+            let mut map = std::collections::BTreeMap::<String, $crate::tag::NbtTag>::new();
             $(
-                ($name.to_string(), $tag),
+                map.insert($name.to_string(), $tag);
             )*
-        ])
+            $crate::tag::NbtTag::Compound(map)
+        }
     };
 }
 
@@ -83,19 +88,28 @@ macro_rules! nbt_list {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeMap;
     use crate::NbtTag;
 
     #[test]
     fn test_nbt_macros() {
-        let tag = NbtTag::Compound(vec![
-            ("a".to_string(), NbtTag::Byte(0)),
-            ("b".to_string(), NbtTag::IntArray(vec![5; 10])),
-            ("c".to_string(), NbtTag::Compound(vec![
-                ("a".to_string(), NbtTag::Byte(0)),
-                ("b".to_string(), NbtTag::IntArray(vec![1; 10])),
-                ("c".to_string(), NbtTag::Compound(vec![]))
-            ])),
-        ]);
+        let tag = NbtTag::Compound({
+            let mut map = BTreeMap::<String, NbtTag>::new();
+
+            map.insert("a".to_string(), NbtTag::Byte(0));
+            map.insert("b".to_string(), NbtTag::IntArray(vec![5; 10]));
+            map.insert("c".to_string(), NbtTag::Compound({
+                let mut map = BTreeMap::new();
+
+                map.insert("a".to_string(), NbtTag::Byte(0));
+                map.insert("b".to_string(), NbtTag::IntArray(vec![1; 10]));
+                map.insert("c".to_string(), NbtTag::Compound(BTreeMap::new()));
+
+                map
+            }));
+
+            map
+        });
 
         let macro_tag = nbt_compound!(
             "a" => nbt_byte!(0),

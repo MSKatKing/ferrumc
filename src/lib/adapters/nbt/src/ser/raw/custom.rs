@@ -1,7 +1,7 @@
 use crate::NbtTag;
 use serde::ser::{Impossible, SerializeMap, SerializeSeq, SerializeStruct, SerializeStructVariant};
 use serde::{Serialize, Serializer};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use crate::ser::raw::NbtSerializationError;
 
 pub struct RawNbtSerializer;
@@ -90,7 +90,7 @@ impl<'a> Serializer for &'a mut RawNbtSerializer {
     }
 
     fn serialize_unit_struct(self, _: &'static str) -> Result<Self::Ok, Self::Error> {
-        Ok(NbtTag::Compound(vec![]))
+        Ok(NbtTag::Compound(BTreeMap::new()))
     }
 
     fn serialize_unit_variant(self, _: &'static str, _: u32, variant: &'static str) -> Result<Self::Ok, Self::Error> {
@@ -264,5 +264,57 @@ impl<'a> SerializeStructVariant for RawNbtMapSerializer<'a> {
 
     fn end(self) -> Result<Self::Ok, Self::Error> {
         <Self as SerializeStruct>::end(self)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashMap;
+    use serde::Serialize;
+    use crate::{nbt_byte, nbt_compound, nbt_int_array, RawNbt};
+
+    #[derive(Debug, Serialize)]
+    struct Foo {
+        a: i8,
+        b: Vec<i32>,
+        c: Bar,
+    }
+
+    #[derive(Debug, Serialize)]
+    struct Bar {
+        a: i8,
+        b: Vec<i32>,
+        c: HashMap<String, i32>,
+    }
+
+    #[test]
+    fn test_serde_serializer() {
+        let tag = RawNbt::from_tag_unchecked(nbt_compound!(
+            "a" => nbt_byte!(0),
+            "b" => nbt_int_array!(5; 10),
+            "c" => nbt_compound!(
+                "a" => nbt_byte!(0),
+                "b" => nbt_int_array!(1; 10),
+                "c" => nbt_compound!()
+            )
+        ));
+
+        let foo = Foo {
+            a: 0,
+            b: vec![5; 10],
+            c: Bar {
+                a: 0,
+                b: vec![1; 10],
+                c: HashMap::new(),
+            }
+        };
+
+        let foo = RawNbt::from_data(&foo);
+
+        assert!(foo.is_ok());
+
+        let foo = foo.unwrap();
+
+        assert_eq!(foo, tag)
     }
 }
