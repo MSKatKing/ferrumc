@@ -101,16 +101,19 @@ impl NetEncode for NbtTag {
                 writer.write_all(&arr).map_err(NetEncodeError::from)?;
             },
             Self::String(str) => {
-                writer.write_all(&(str.len() as u32).to_be_bytes()).map_err(NetEncodeError::from)?;
+                writer.write_all(&(str.len() as u16).to_be_bytes()).map_err(NetEncodeError::from)?;
                 writer.write_all(str.as_bytes()).map_err(NetEncodeError::from)?;
             },
             Self::List { nbt_type, list } => {
                 writer.write_all(&(*nbt_type as u8).to_be_bytes()).map_err(NetEncodeError::from)?;
                 writer.write_all(&(list.len() as u32).to_be_bytes()).map_err(NetEncodeError::from)?;
+                for tag in list {
+                    <Self as NetEncode>::encode(tag, writer, opts)?;
+                }
             },
             Self::Compound { inner } => {
                 for (tag_name, tag) in inner.iter() {
-                    writer.write_all(&(self.tag_type() as u8).to_be_bytes()).map_err(NetEncodeError::from)?;
+                    writer.write_all(&(tag.tag_type() as u8).to_be_bytes()).map_err(NetEncodeError::from)?;
                     writer.write_all(&(tag_name.len() as u16).to_be_bytes()).map_err(NetEncodeError::from)?;
                     writer.write_all(tag_name.as_bytes()).map_err(NetEncodeError::from)?;
                     <Self as NetEncode>::encode(tag, writer, opts)?;
