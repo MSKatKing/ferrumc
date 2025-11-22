@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
 use std::io::Write;
 use std::ops::{Deref, DerefMut};
 use serde::de::DeserializeOwned;
@@ -16,6 +16,12 @@ pub struct Nbt<T: Serialize + DeserializeOwned> {
 impl<T: Serialize + DeserializeOwned + Debug> Debug for Nbt<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "Nbt {{ {:?} }}", self.inner)
+    }
+}
+
+impl<T: Serialize + DeserializeOwned> Display for Nbt<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", RawNbt::from_data(&self.inner).map_err(|_| std::fmt::Error)?)
     }
 }
 
@@ -141,5 +147,22 @@ mod tests {
         let mut buf = Vec::new();
         foo.encode(&mut buf, &NetEncodeOpts::default()).unwrap();
         assert_eq!(buf, DATA)
+    }
+
+    #[test]
+    fn test_snbt_encode() {
+        let foo = Nbt::from(
+            Foo {
+                a: 0,
+                b: vec![5; 10],
+                c: Bar {
+                    a: 0,
+                    b: vec![1; 10],
+                    c: HashMap::new(),
+                }
+            }
+        );
+
+        assert_eq!(foo.to_string(), "{\"a\":0,\"b\":[I;5,5,5,5,5,5,5,5,5,5],\"c\":{\"a\":0,\"b\":[I;1,1,1,1,1,1,1,1,1,1],\"c\":{}}}")
     }
 }
