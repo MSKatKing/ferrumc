@@ -18,7 +18,6 @@ pub enum NbtTag {
 }
 
 impl NbtTag {
-    const END_ID: u8 = 0;
     const BYTE_ID: u8 = 1;
     const SHORT_ID: u8 = 2;
     const INT_ID: u8 = 3;
