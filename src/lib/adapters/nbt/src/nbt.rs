@@ -36,12 +36,12 @@ impl<T: Serialize + DeserializeOwned> DerefMut for Nbt<T> {
 
 impl<T: Serialize + DeserializeOwned + Clone> NetEncode for Nbt<T> {
     fn encode<W: Write>(&self, writer: &mut W, opts: &NetEncodeOpts) -> Result<(), NetEncodeError> {
-        RawNbt::encode(self.inner.clone())
+        RawNbt::serialize(self.inner.clone())
             .encode(writer, opts)
     }
 
     async fn encode_async<W: AsyncWrite + Unpin>(&self, writer: &mut W, opts: &NetEncodeOpts) -> Result<(), NetEncodeError> {
-        RawNbt::encode(self.inner.clone())
+        RawNbt::serialize(self.inner.clone())
             .encode_async(writer, opts).await
     }
 }
@@ -50,7 +50,7 @@ impl<T: Serialize + DeserializeOwned> NetDecode for Nbt<T> {
     fn decode<R: Read>(reader: &mut R, opts: &NetDecodeOpts) -> Result<Self, NetDecodeError> {
         Ok(Self {
             inner: <RawNbt as NetDecode>::decode(reader, opts)?
-                .decode()
+                .deserialize()
         })
     }
 
@@ -58,7 +58,7 @@ impl<T: Serialize + DeserializeOwned> NetDecode for Nbt<T> {
         Ok(Self {
             inner: <RawNbt as NetDecode>::decode_async(reader, opts)
                 .await?
-                .decode()
+                .deserialize()
         })
     }
 }

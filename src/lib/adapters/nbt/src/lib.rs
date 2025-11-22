@@ -1,4 +1,6 @@
 #![allow(unsafe_code)]
+extern crate core;
+
 pub mod de;
 pub mod errors;
 pub mod ser;
