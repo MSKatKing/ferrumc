@@ -11,7 +11,7 @@
 resolver = "2"
 
 #================= Members =================#
- members = [
+members = [
     "src/bin",
     "src/lib/adapters/anvil",
     "src/lib/adapters/nbt",
@@ -118,8 +118,8 @@ ferrumc-utils = { path = "src/lib/utils" }
 ferrumc-world = { path = "src/lib/world" }
 ferrumc-world-gen = { path = "src/lib/world_gen" }
 ferrumc-inventories = { path = "src/lib/inventories" }
-ferrumc-components = { path = "src/lib/components"}
-ferrumc-events = { path = "src/lib/events"}
+ferrumc-components = { path = "src/lib/components" }
+ferrumc-events = { path = "src/lib/events" }
 ferrumc-data = { path = "src/lib/data" }
 
 # Asynchronous
@@ -140,6 +140,7 @@ crossbeam-queue = "0.3.12"
 
 # Network
 ureq = "3.1.2"
+reqwest = { version = "0.12.24", features = ["json"] }
 
 # Error handling
 thiserror = "2.0.17"
@@ -149,6 +150,11 @@ rand = "0.10.0-rc.0"
 fnv = "1.0.7"
 wyhash = "0.6.0"
 ahash = "0.8.12"
+rsa = { version = "0.10.0-rc.10" }
+aes = { version = "0.8.4" }
+cfb8 = "0.8.1"
+sha1 = "0.10.6"
+num-bigint = "0.4.6"
 
 # Encoding/Serialization
 serde = { version = "1.0.228", features = ["derive"] }
