@@ -4,3 +4,4 @@ mod raw;
 mod macros;
 
 pub use tag::NbtTag;
+pub use raw::RawNbt;

@@ -1,5 +1,5 @@
 pub mod tag;
-mod raw;
+pub mod raw;
 
 #[derive(Debug, Copy, Clone)]
 pub enum NbtSerializationOptions {
