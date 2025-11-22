@@ -74,7 +74,6 @@ mod tests {
         0x00, 0x01, 0x0A, 0x00, 0x01, 0x63, 0x00, 0x00, 0x00
     ];
 
-
     #[test]
     fn test_bin_serialization() {
         let tag = nbt_compound!(
