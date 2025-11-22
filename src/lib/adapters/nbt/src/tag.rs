@@ -43,50 +43,6 @@ impl NbtTag {
     }
 }
 
-impl NbtTag {
-    async fn encode<W: AsyncWrite + Unpin>(&self, writer: &mut W, opts: &NetEncodeOpts) -> Result<(), NetEncodeError> {
-        match self {
-            Self::Byte(i) => writer.write_all(&i.to_be_bytes()).await.map_err(NetEncodeError::from)?,
-            Self::Short(i) => writer.write_all(&i.to_be_bytes()).await.map_err(NetEncodeError::from)?,
-            Self::Int(i) => writer.write_all(&i.to_be_bytes()).await.map_err(NetEncodeError::from)?,
-            Self::Long(i) => writer.write_all(&i.to_be_bytes()).await.map_err(NetEncodeError::from)?,
-            Self::Float(i) => writer.write_all(&i.to_be_bytes()).await.map_err(NetEncodeError::from)?,
-            Self::Double(i) => writer.write_all(&i.to_be_bytes()).await.map_err(NetEncodeError::from)?,
-            Self::ByteArray(arr) => {
-                writer.write_all(&(arr.len() as u32).to_be_bytes()).await.map_err(NetEncodeError::from)?;
-                writer.write_all(&arr).await.map_err(NetEncodeError::from)?;
-            },
-            Self::String(str) => {
-                writer.write_all(&(str.len() as u32).to_be_bytes()).await.map_err(NetEncodeError::from)?;
-                writer.write_all(str.as_bytes()).await.map_err(NetEncodeError::from)?;
-            },
-            Self::List { nbt_type, list } => {
-                writer.write_all(&(*nbt_type as u8).to_be_bytes()).await.map_err(NetEncodeError::from)?;
-                writer.write_all(&(list.len() as u32).to_be_bytes()).await.map_err(NetEncodeError::from)?;
-            },
-            Self::Compound { inner } => {
-                for (tag_name, tag) in inner.iter() {
-                    writer.write_all(&(self.tag_type() as u8).to_be_bytes()).await.map_err(NetEncodeError::from)?;
-                    writer.write_all(&(tag_name.len() as u16).to_be_bytes()).await.map_err(NetEncodeError::from)?;
-                    writer.write_all(tag_name.as_bytes()).await.map_err(NetEncodeError::from)?;
-                    Box::pin(tag.encode(writer, opts)).await?;
-                }
-                writer.write_all(&[0]).await.map_err(NetEncodeError::from)?;
-            },
-            Self::IntArray(arr) => {
-                writer.write_all(&(arr.len() as u32).to_be_bytes()).await.map_err(NetEncodeError::from)?;
-                writer.write_all(&arr.iter().map(|b| b.to_be_bytes()).flatten().collect::<Vec<u8>>()).await.map_err(NetEncodeError::from)?;
-            },
-            Self::LongArray(arr) => {
-                writer.write_all(&(arr.len() as u32).to_be_bytes()).await.map_err(NetEncodeError::from)?;
-                writer.write_all(&arr.iter().map(|b| b.to_be_bytes()).flatten().collect::<Vec<u8>>()).await.map_err(NetEncodeError::from)?;
-            }
-        }
-
-        Ok(())
-    }
-}
-
 impl NetEncode for NbtTag {
     fn encode<W: Write>(&self, writer: &mut W, opts: &NetEncodeOpts) -> Result<(), NetEncodeError> {
         match self {
@@ -134,7 +90,48 @@ impl NetEncode for NbtTag {
     }
 
     async fn encode_async<W: AsyncWrite + Unpin>(&self, writer: &mut W, opts: &NetEncodeOpts) -> Result<(), NetEncodeError> {
-        self.encode(writer, opts).await
+        match self {
+            Self::Byte(i) => writer.write_all(&i.to_be_bytes()).await.map_err(NetEncodeError::from)?,
+            Self::Short(i) => writer.write_all(&i.to_be_bytes()).await.map_err(NetEncodeError::from)?,
+            Self::Int(i) => writer.write_all(&i.to_be_bytes()).await.map_err(NetEncodeError::from)?,
+            Self::Long(i) => writer.write_all(&i.to_be_bytes()).await.map_err(NetEncodeError::from)?,
+            Self::Float(i) => writer.write_all(&i.to_be_bytes()).await.map_err(NetEncodeError::from)?,
+            Self::Double(i) => writer.write_all(&i.to_be_bytes()).await.map_err(NetEncodeError::from)?,
+            Self::ByteArray(arr) => {
+                writer.write_all(&(arr.len() as u32).to_be_bytes()).await.map_err(NetEncodeError::from)?;
+                writer.write_all(&arr).await.map_err(NetEncodeError::from)?;
+            },
+            Self::String(str) => {
+                writer.write_all(&(str.len() as u16).to_be_bytes()).await.map_err(NetEncodeError::from)?;
+                writer.write_all(str.as_bytes()).await.map_err(NetEncodeError::from)?;
+            },
+            Self::List { nbt_type, list } => {
+                writer.write_all(&(*nbt_type as u8).to_be_bytes()).await.map_err(NetEncodeError::from)?;
+                writer.write_all(&(list.len() as u32).to_be_bytes()).await.map_err(NetEncodeError::from)?;
+                for tag in list {
+                    Box::pin(tag.encode_async(writer, opts)).await?;
+                }
+            },
+            Self::Compound { inner } => {
+                for (tag_name, tag) in inner.iter() {
+                    writer.write_all(&(tag.tag_type() as u8).to_be_bytes()).await.map_err(NetEncodeError::from)?;
+                    writer.write_all(&(tag_name.len() as u16).to_be_bytes()).await.map_err(NetEncodeError::from)?;
+                    writer.write_all(tag_name.as_bytes()).await.map_err(NetEncodeError::from)?;
+                    Box::pin(tag.encode_async(writer, opts)).await?;
+                }
+                writer.write_all(&[0]).await.map_err(NetEncodeError::from)?;
+            },
+            Self::IntArray(arr) => {
+                writer.write_all(&(arr.len() as u32).to_be_bytes()).await.map_err(NetEncodeError::from)?;
+                writer.write_all(&arr.iter().map(|b| b.to_be_bytes()).flatten().collect::<Vec<u8>>()).await.map_err(NetEncodeError::from)?;
+            },
+            Self::LongArray(arr) => {
+                writer.write_all(&(arr.len() as u32).to_be_bytes()).await.map_err(NetEncodeError::from)?;
+                writer.write_all(&arr.iter().map(|b| b.to_be_bytes()).flatten().collect::<Vec<u8>>()).await.map_err(NetEncodeError::from)?;
+            }
+        }
+
+        Ok(())
     }
 }
 
